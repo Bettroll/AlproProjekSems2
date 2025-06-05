@@ -3,307 +3,306 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.ArrayList;
-// import java.util.Random; // Jika ingin seed tetap
 
 public class ProjekAlpro {
-    // ... (konstanta dan variabel global lainnya sama) ...
-    static final int SIZE = 10;
-    static final int INITIAL_HP = 10;
-    static final int MAX_HP = 10;
-    static int DELAY_MS = 500;
+    // NOTE: Konstanta ukuran papan dan HP
+    static final int UKURAN = 10;
+    static final int HP_AWAL = 10;
+    static final int HP_MAKS = 10;
+    static int jedaMs = 500;
 
-    static char[][] map = new char[SIZE][SIZE];
+    // NOTE: Papan karakter utama
+    static char[][] papanKarakter = new char[UKURAN][UKURAN];
 
-    static final int startY = SIZE - 1;
-    static final int startX = 0;
-    static final int finishY = 0;
-    static final int finishX = SIZE - 1;
+    // NOTE: Titik mulai dan akhir
+    static final int mulaiBaris = UKURAN - 1;
+    static final int mulaiKolom = 0;
+    static final int akhirBaris = 0;
+    static final int akhirKolom = UKURAN - 1;
 
-    static int[][] balok = {{1,3}, {4,2}, {7,8}};
-    static int[][] api = {{4,7}, {6,2}, {8,5}};
-    static int[][] air = {{4,8}, {7,3}, {2,7}};
-    static int[][] heal = {{6,4}, {3,5}, {2,1}};
-    static int[][] teleport_locs = {{0,7}, {9,3}};
+    // NOTE: Daftar posisi objek khusus di papan
+    static int[][] daftarBalok = {{1,3}, {4,2}, {7,8}};
+    static int[][] daftarApi = {{4,7}, {6,2}, {8,5}};
+    static int[][] daftarAir = {{4,8}, {7,3}, {2,7}};
+    static int[][] daftarHeal = {{6,4}, {3,5}, {2,1}};
+    static int[][] lokasiTeleport = {{0,7}, {9,3}};
 
-    static int[] dy = {-1, 1, 0, 0};
-    static int[] dx = {0, 0, -1, 1};
-    static String[] move_names = {"ATAS", "BAWAH", "KIRI", "KANAN"};
+    // NOTE: Arah gerak (atas, bawah, kiri, kanan)
+    static int[] deltaBaris = {-1, 1, 0, 0};
+    static int[] deltaKolom = {0, 0, -1, 1};
+    static String[] namaArah = {"ATAS", "BAWAH", "KIRI", "KANAN"};
 
-    static int[][] firstFoundSolutionPath = null; // Akan menyimpan solusi pertama yang ditemukan
-    static int firstFoundHp = -1;
-    static int firstFoundSteps = -1;
-    static int firstFoundIterationId = -1;
-    static boolean stopAllSearch = false; // Flag untuk menghentikan semua pencarian setelah F pertama ditemukan
-    // Hapus variabel bestSolution karena kita hanya peduli solusi pertama
-    // static int[][] bestSolutionPath = null;
-    // static int bestHp = -1;
-    // static int bestSteps = Integer.MAX_VALUE;
-    // static int bestSolutionIterationId = -1;
+    // NOTE: Variabel untuk menyimpan solusi pertama yang ditemukan
+    static int[][] solusiPertama = null;
+    static int hpSolusiPertama = -1;
+    static int langkahSolusiPertama = -1;
+    static int iterasiSolusiPertama = -1;
+    static boolean hentikanSemua = false;
 
-    static boolean solutionFoundThisRun = false; // Tetap berguna untuk tahu apakah F pernah tercapai
-    static boolean display_steps = false;
-
+    static boolean solusiDitemukan = false;
+    static boolean tampilLangkah = false;
 
     public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-        generateMap();
+        Scanner input = new Scanner(System.in);
+        buatPapan(); // NOTE: Inisialisasi papan
 
         while (true) {
+            // NOTE: Menu utama
             System.out.println("\n=== MENU ===");
             System.out.println("1. Tampilkan MAP Dasar");
             System.out.println("2. Proses Perjalanan (Berhenti di F pertama, variasi jalur)");
             System.out.println("3. Langsung Hasil Akhir (Berhenti di F pertama, variasi jalur)");
             System.out.println("0. Keluar");
             System.out.print("Pilihanmu: ");
-            int pilihan = sc.nextInt();
-            sc.nextLine();
+            int pilihanMenu = input.nextInt();
+            input.nextLine();
 
-            // Reset state untuk setiap pencarian baru
-            firstFoundSolutionPath = null;
-            firstFoundHp = -1;
-            firstFoundSteps = -1;
-            firstFoundIterationId = -1;
-            stopAllSearch = false; // PENTING: Reset flag ini
-            solutionFoundThisRun = false;
+            // NOTE: Reset variabel solusi setiap proses baru
+            solusiPertama = null;
+            hpSolusiPertama = -1;
+            langkahSolusiPertama = -1;
+            iterasiSolusiPertama = -1;
+            hentikanSemua = false;
+            solusiDitemukan = false;
 
+            int[][] papanAwal = new int[UKURAN][UKURAN];
 
-            int[][] initialPathBoard = new int[SIZE][SIZE];
-
-            if (pilihan == 1) {
-                printMapWithOverlay(map, initialPathBoard, INITIAL_HP, 0, false);
-            } else if (pilihan == 2) {
-                display_steps = true;
+            if (pilihanMenu == 1) {
+                tampilkanPapan(papanKarakter, papanAwal, HP_AWAL, 0, false);
+            } else if (pilihanMenu == 2) {
+                tampilLangkah = true;
                 System.out.println("\nMemulai proses perjalanan (berhenti di F pertama, jalur akan bervariasi)...");
-                System.out.print("Masukkan delay antar langkah (ms), misal 500: ");
-                DELAY_MS = sc.nextInt(); sc.nextLine();
-                findPath(0, initialPathBoard, startY, startX, INITIAL_HP, 1, map[startY][startX]);
+                System.out.print("Masukkan jeda antar langkah (ms), misal 500: ");
+                jedaMs = input.nextInt(); input.nextLine();
+                // NOTE: Mulai proses backtracking dari titik awal
+                findPath(0, papanAwal, mulaiBaris, mulaiKolom, HP_AWAL, 1, papanKarakter[mulaiBaris][mulaiKolom]);
 
-                if (solutionFoundThisRun && firstFoundSolutionPath != null) {
+                if (solusiDitemukan && solusiPertama != null) {
                     System.out.println("\n=== PROSES SELESAI (Berhenti di F pertama) ===");
                     System.out.println("Solusi pertama yang ditemukan mencapai Finish:");
-                    printMapWithOverlay(map, firstFoundSolutionPath, firstFoundHp, firstFoundSteps, true);
-                    System.out.println("Sisa HP: " + firstFoundHp);
-                    System.out.println("Jumlah Sel di Path Solusi: " + firstFoundSteps);
-                    System.out.println("Mencapai Finish pada langkah dengan ID iterasi: " + firstFoundIterationId);
+                    tampilkanPapan(papanKarakter, solusiPertama, hpSolusiPertama, langkahSolusiPertama, true);
+                    System.out.println("Sisa HP: " + hpSolusiPertama);
+                    System.out.println("Jumlah Sel di Path Solusi: " + langkahSolusiPertama);
+                    System.out.println("Mencapai Finish pada langkah dengan ID iterasi: " + iterasiSolusiPertama);
                 } else {
                     System.out.println("\nTidak ada solusi yang ditemukan (tidak mencapai Finish).");
                 }
-                display_steps = false;
-            } else if (pilihan == 3) {
-                display_steps = false;
+                tampilLangkah = false;
+            } else if (pilihanMenu == 3) {
+                tampilLangkah = false;
                 System.out.println("\nMemproses untuk hasil akhir (berhenti di F pertama, jalur akan bervariasi)...");
-                findPath(0, initialPathBoard, startY, startX, INITIAL_HP, 1, map[startY][startX]);
+                // NOTE: Mulai proses backtracking dari titik awal (tanpa tampil langkah)
+                findPath(0, papanAwal, mulaiBaris, mulaiKolom, HP_AWAL, 1, papanKarakter[mulaiBaris][mulaiKolom]);
 
-                if (solutionFoundThisRun && firstFoundSolutionPath != null) {
+                if (solusiDitemukan && solusiPertama != null) {
                     System.out.println("\n=== HASIL AKHIR (Berhenti di F pertama) ===");
                     System.out.println("Solusi pertama yang ditemukan mencapai Finish:");
-                    printMapWithOverlay(map, firstFoundSolutionPath, firstFoundHp, firstFoundSteps, true);
-                    System.out.println("Sisa HP: " + firstFoundHp);
-                    System.out.println("Jumlah Sel di Path Solusi: " + firstFoundSteps);
-                    System.out.println("Mencapai Finish pada langkah dengan ID iterasi: " + firstFoundIterationId);
+                    tampilkanPapan(papanKarakter, solusiPertama, hpSolusiPertama, langkahSolusiPertama, true);
+                    System.out.println("Sisa HP: " + hpSolusiPertama);
+                    System.out.println("Jumlah Sel di Path Solusi: " + langkahSolusiPertama);
+                    System.out.println("Mencapai Finish pada langkah dengan ID iterasi: " + iterasiSolusiPertama);
                 } else {
                     System.out.println("\nTidak ada solusi yang ditemukan (tidak mencapai Finish).");
                 }
-            } else if (pilihan == 0) {
+            } else if (pilihanMenu == 0) {
                 break;
             } else {
                 System.out.println("Pilihan tidak valid.");
             }
         }
-        sc.close();
+        input.close();
     }
 
-    static void generateMap() {
-        // ... (sama)
-        for (int i = 0; i < SIZE; i++) {
-            for (int j = 0; j < SIZE; j++) {
-                map[i][j] = '-';
+    // NOTE: Inisialisasi papan dan objek-objeknya
+    static void buatPapan() {
+        for (int i = 0; i < UKURAN; i++) {
+            for (int j = 0; j < UKURAN; j++) {
+                papanKarakter[i][j] = '-';
             }
         }
-        map[startY][startX] = 'S';
-        map[finishY][finishX] = 'F';
-        for (int[] b : balok) map[b[0]][b[1]] = 'B';
-        for (int[] a : api) map[a[0]][a[1]] = 'A';
-        for (int[] w : air) map[w[0]][w[1]] = 'a';
-        for (int[] h : heal) map[h[0]][h[1]] = 'H';
-        map[teleport_locs[0][0]][teleport_locs[0][1]] = 'T';
-        map[teleport_locs[1][0]][teleport_locs[1][1]] = 'T';
+        papanKarakter[mulaiBaris][mulaiKolom] = 'S';
+        papanKarakter[akhirBaris][akhirKolom] = 'F';
+        for (int[] b : daftarBalok) papanKarakter[b[0]][b[1]] = 'B';
+        for (int[] a : daftarApi) papanKarakter[a[0]][a[1]] = 'A';
+        for (int[] w : daftarAir) papanKarakter[w[0]][w[1]] = 'a';
+        for (int[] h : daftarHeal) papanKarakter[h[0]][h[1]] = 'H';
+        papanKarakter[lokasiTeleport[0][0]][lokasiTeleport[0][1]] = 'T';
+        papanKarakter[lokasiTeleport[1][0]][lokasiTeleport[1][1]] = 'T';
     }
 
-    static int[][] copyIntArray(int[][] original) {
-        // ... (sama)
-        if (original == null) return null;
-        int[][] copy = new int[original.length][];
-        for (int i = 0; i < original.length; i++) {
-            copy[i] = Arrays.copyOf(original[i], original[i].length);
+    // NOTE: Membuat salinan papan (untuk setiap cabang backtracking)
+    static int[][] copyPapan(int[][] papan) {
+        if (papan == null) return null;
+        int[][] baru = new int[papan.length][];
+        for (int i = 0; i < papan.length; i++) {
+            baru[i] = Arrays.copyOf(papan[i], papan[i].length);
         }
-        return copy;
+        return baru;
     }
 
-    static boolean isSafe(int r, int c, int[][] current_path_board, int iteration_id) {
-        // ... (sama)
-        if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return false;
-        if (map[r][c] == 'B') return false;
-        if (current_path_board[r][c] == iteration_id) return false;
+    // NOTE: Mengecek apakah posisi aman untuk dilalui
+    static boolean aman(int baris, int kolom, int[][] copyPapan, int idIterasi) {
+        if (baris < 0 || baris >= UKURAN || kolom < 0 || kolom >= UKURAN) return false;
+        if (papanKarakter[baris][kolom] == 'B') return false;
+        if (copyPapan[baris][kolom] == idIterasi) return false;
         return true;
     }
 
-    static int countTotalStepsInPath(int[][] pathBoard) {
-        // ... (sama)
-        if (pathBoard == null) return 0;
-        int count = 0;
-        for (int i = 0; i < SIZE; i++) {
-            for (int j = 0; j < SIZE; j++) {
-                if (pathBoard[i][j] != 0) {
-                    count++;
+    // NOTE: Menghitung jumlah langkah pada jalur solusi
+    static int hitungLangkah(int[][] papan) {
+        if (papan == null) return 0;
+        int jumlah = 0;
+        for (int i = 0; i < UKURAN; i++) {
+            for (int j = 0; j < UKURAN; j++) {
+                if (papan[i][j] != 0) {
+                    jumlah++;
                 }
             }
         }
-        return count;
+        return jumlah;
     }
 
-    static void findPath(int steps_in_current_iteration, int[][] path_board_before_this_step,
-                         int r, int c, int current_hp, int iteration_id, char char_of_cell_just_left) {
+    // NOTE: FUNGSI BACKTRACKING UTAMA
+    static void findPath(int depth, int[][] copyPapanSebelum,
+                         int baris, int kolom, int hpSekarang, int idIterasi, char karakterSebelumnya) {
 
-        // === PERUBAHAN 1: Cek flag stopAllSearch di awal ===
-        if (stopAllSearch) {
-            return; // Jika sudah ada F ditemukan, hentikan cabang ini
+        if (hentikanSemua) {
+            return;
         }
 
-        int[][] current_path_board = copyIntArray(path_board_before_this_step);
-        current_path_board[r][c] = iteration_id;
+        int[][] copyPapan = copyPapan(copyPapanSebelum);
+        copyPapan[baris][kolom] = idIterasi;
 
-        if (display_steps) {
+        // NOTE: Tampilkan langkah jika diaktifkan
+        if (tampilLangkah) {
             System.out.println("\n------------------------------------------");
-            System.out.println("Iterasi: " + iteration_id + ", Langkah ke-" + (steps_in_current_iteration + 1) +
-                               " di (" + r + "," + c + ")");
-            System.out.println("HP: " + current_hp + ", Cell Sebelumnya: '" + char_of_cell_just_left + "' -> Cell Sekarang: '" + map[r][c] + "'");
-            printMapWithOverlay(map, current_path_board, current_hp, steps_in_current_iteration + 1, false);
-            try { Thread.sleep(DELAY_MS); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            System.out.println("Iterasi: " + idIterasi + ", Depth ke-" + (depth + 1) +
+                               " di (" + baris + "," + kolom + ")");
+            System.out.println("HP: " + hpSekarang + ", Cell Sebelumnya: '" + karakterSebelumnya + "' -> Cell Sekarang: '" + papanKarakter[baris][kolom] + "'");
+            tampilkanPapan(papanKarakter, copyPapan, hpSekarang, depth + 1, false);
+            try { Thread.sleep(jedaMs); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         }
 
-        if (r == finishY && c == finishX) {
-            solutionFoundThisRun = true; // Tetap berguna
-            int path_length = countTotalStepsInPath(current_path_board);
+        // NOTE: Jika sudah sampai finish
+        if (baris == akhirBaris && kolom == akhirKolom) {
+            solusiDitemukan = true;
+            int panjangLangkah = hitungLangkah(copyPapan);
 
-            if (display_steps) {
-                System.out.println("!!! SAMPAI FINISH (PERTAMA KALI) !!! HP: " + current_hp + ", Total Sel di Path: " + path_length + ", Iterasi saat ini: " + iteration_id);
+            if (tampilLangkah) {
+                System.out.println("!!! SAMPAI FINISH (PERTAMA KALI) !!! HP: " + hpSekarang + ", Total Sel di Path: " + panjangLangkah + ", Iterasi saat ini: " + idIterasi);
             }
 
-            // === PERUBAHAN 2: Simpan solusi pertama dan set flag stopAllSearch ===
-            if (firstFoundSolutionPath == null) { // Hanya simpan jika ini yang pertama
-                firstFoundHp = current_hp;
-                firstFoundSteps = path_length;
-                firstFoundSolutionPath = copyIntArray(current_path_board);
-                firstFoundIterationId = iteration_id;
-                stopAllSearch = true; // SET FLAG UNTUK MENGHENTIKAN SEMUA PENCARIAN LAIN
-                if (display_steps) {
+            if (solusiPertama == null) {
+                hpSolusiPertama = hpSekarang;
+                langkahSolusiPertama = panjangLangkah;
+                solusiPertama = copyPapan(copyPapan);
+                iterasiSolusiPertama = idIterasi;
+                hentikanSemua = true;
+                if (tampilLangkah) {
                     System.out.println(">>> SOLUSI PERTAMA DITEMUKAN DAN DICATAT! Pencarian akan dihentikan.");
                 }
             }
-            return; // Selesai untuk cabang ini, dan pencarian global juga akan berhenti
+            return;
         }
 
-        // Tidak perlu lagi batas iterasi yang terlalu tinggi jika kita berhenti di F pertama,
-        // tapi bisa dipertahankan sebagai pengaman jika F tidak pernah tercapai.
-        if (iteration_id > SIZE * SIZE * 10 ) { // Mungkin bisa dikurangi
-             if(display_steps) System.out.println("Batas iterasi maksimum ("+ (SIZE*SIZE*10) +") tercapai tanpa menemukan F. Menghentikan cabang ini.");
+        // NOTE: Batas iterasi untuk mencegah infinite loop
+        if (idIterasi > UKURAN * UKURAN * 10 ) {
+             if(tampilLangkah) System.out.println("Batas iterasi maksimum ("+ (UKURAN*UKURAN*10) +") tercapai tanpa menemukan F. Menghentikan cabang ini.");
              return;
         }
 
-        boolean moved_in_this_iteration_branch = false;
-        List<Integer> moveOrderIndices = new ArrayList<>();
-        for (int k = 0; k < 4; k++) { moveOrderIndices.add(k); }
-        Collections.shuffle(moveOrderIndices);
+        boolean sudahBergerak = false;
+        List<Integer> urutanArah = new ArrayList<>();
+        for (int k = 0; k < 4; k++) { urutanArah.add(k); }
+        Collections.shuffle(urutanArah);
 
-        for (int moveIndex : moveOrderIndices) {
-            // === PERUBAHAN 3: Cek flag stopAllSearch sebelum rekursi ===
-            if (stopAllSearch) return;
+        // NOTE: Coba semua arah (rekursi/backtracking)
+        for (int idxArah : urutanArah) {
+            if (hentikanSemua) return;
 
-            int nr = r + dy[moveIndex];
-            int nc = c + dx[moveIndex];
+            int barisBaru = baris + deltaBaris[idxArah];
+            int kolomBaru = kolom + deltaKolom[idxArah];
 
-            if (isSafe(nr, nc, current_path_board, iteration_id)) {
-                moved_in_this_iteration_branch = true;
-                int next_hp = current_hp;
-                char char_at_current_rc = map[r][c];
-                char char_at_next_rc = map[nr][nc];
-                int next_r_after_effect = nr; int next_c_after_effect = nc;
-                boolean teleported = false; String effect_msg = "";
+            if (aman(barisBaru, kolomBaru, copyPapan, idIterasi)) {
+                sudahBergerak = true;
+                int hpBerikut = hpSekarang;
+                char karakterSekarang = papanKarakter[baris][kolom];
+                char karakterTujuan = papanKarakter[barisBaru][kolomBaru];
+                int barisSetelahEfek = barisBaru; int kolomSetelahEfek = kolomBaru;
+                boolean teleport = false; String pesanEfek = "";
 
-                // ... (Logika efek rintangan, teleport, combo sama) ...
-                if (char_at_next_rc == 'a') { next_hp -= 1; effect_msg = "Kena Air (-1 HP)"; }
-                else if (char_at_next_rc == 'A') { next_hp -= 2; effect_msg = "Kena Api (-2 HP)"; }
-                else if (char_at_next_rc == 'H') { next_hp = Math.min(next_hp + 1, MAX_HP); effect_msg = "Dapat Heal (+1 HP)"; }
-                else if (char_at_next_rc == 'T') {
-                    effect_msg = "Masuk Teleport ";
-                    if (nr == teleport_locs[0][0] && nc == teleport_locs[0][1]) {
-                        next_r_after_effect = teleport_locs[1][0]; next_c_after_effect = teleport_locs[1][1];
+                // NOTE: Efek cell khusus
+                if (karakterTujuan == 'a') { hpBerikut -= 1; pesanEfek = "Kena Air (-1 HP)"; }
+                else if (karakterTujuan == 'A') { hpBerikut -= 2; pesanEfek = "Kena Api (-2 HP)"; }
+                else if (karakterTujuan == 'H') { hpBerikut = Math.min(hpBerikut + 1, HP_MAKS); pesanEfek = "Dapat Heal (+1 HP)"; }
+                else if (karakterTujuan == 'T') {
+                    pesanEfek = "Masuk Teleport ";
+                    if (barisBaru == lokasiTeleport[0][0] && kolomBaru == lokasiTeleport[0][1]) {
+                        barisSetelahEfek = lokasiTeleport[1][0]; kolomSetelahEfek = lokasiTeleport[1][1];
                     } else {
-                        next_r_after_effect = teleport_locs[0][0]; next_c_after_effect = teleport_locs[0][1];
+                        barisSetelahEfek = lokasiTeleport[0][0]; kolomSetelahEfek = lokasiTeleport[0][1];
                     }
-                    teleported = true; char_at_current_rc = 'T';
-                    effect_msg += "ke (" + next_r_after_effect + "," + next_c_after_effect + ")";
+                    teleport = true; karakterSekarang = 'T';
+                    pesanEfek += "ke (" + barisSetelahEfek + "," + kolomSetelahEfek + ")";
                 }
-                if (!teleported && ((char_at_current_rc == 'A' && char_at_next_rc == 'a') || (char_at_current_rc == 'a' && char_at_next_rc == 'A'))) {
-                    next_hp = 0;
-                    effect_msg += (effect_msg.isEmpty() ? "" : ", ") + "COMBO Api-Air! HP jadi 0";
-                }
-
-
-                if (display_steps && !effect_msg.isEmpty()) {
-                     System.out.println("Bergerak " + move_names[moveIndex] + " ke (" + nr + "," + nc + "): " + effect_msg + ". HP jadi: " + next_hp);
+                // NOTE: Efek combo api-air
+                if (!teleport && ((karakterSekarang == 'A' && karakterTujuan == 'a') || (karakterSekarang == 'a' && karakterTujuan == 'A'))) {
+                    hpBerikut = 0;
+                    pesanEfek += (pesanEfek.isEmpty() ? "" : ", ") + "COMBO Api-Air! HP jadi 0";
                 }
 
-                if (next_hp <= 0) {
-                    if (stopAllSearch) return; // Cek lagi sebelum panggil iterasi baru
-                    // ... (logika HP habis sama)
-                    if (display_steps) { System.out.println("HP Habis... Mulai iterasi baru.");}
-                    int[][] board_for_new_iter = copyIntArray(current_path_board);
-                    board_for_new_iter[nr][nc] = iteration_id;
-                    if(teleported){ board_for_new_iter[next_r_after_effect][next_c_after_effect] = iteration_id; }
-                    findPath(0, board_for_new_iter, (teleported ? next_r_after_effect : nr), (teleported ? next_c_after_effect : nc), INITIAL_HP, iteration_id + 1, map[(teleported ? next_r_after_effect : nr)][(teleported ? next_c_after_effect : nc)]);
+                if (tampilLangkah && !pesanEfek.isEmpty()) {
+                     System.out.println("Bergerak " + namaArah[idxArah] + " ke (" + barisBaru + "," + kolomBaru + "): " + pesanEfek + ". HP jadi: " + hpBerikut);
+                }
+
+                // NOTE: Jika HP habis, mulai iterasi baru
+                if (hpBerikut <= 0) {
+                    if (hentikanSemua) return;
+                    if (tampilLangkah) { System.out.println("HP Habis... Mulai iterasi baru.");}
+                    int[][] papanBaruIterasi = copyPapan(copyPapan);
+                    papanBaruIterasi[barisBaru][kolomBaru] = idIterasi;
+                    if(teleport){ papanBaruIterasi[barisSetelahEfek][kolomSetelahEfek] = idIterasi; }
+                    findPath(0, papanBaruIterasi, (teleport ? barisSetelahEfek : barisBaru), (teleport ? kolomSetelahEfek : kolomBaru), HP_AWAL, idIterasi + 1, papanKarakter[(teleport ? barisSetelahEfek : barisBaru)][(teleport ? kolomSetelahEfek : kolomBaru)]);
                     return;
                 } else {
-                    if (stopAllSearch) return; // Cek lagi sebelum rekursi normal
-                    findPath(steps_in_current_iteration + 1, current_path_board, (teleported ? next_r_after_effect : nr), (teleported ? next_c_after_effect : nc), next_hp, iteration_id, char_at_current_rc);
+                    if (hentikanSemua) return;
+                    findPath(depth + 1, copyPapan, (teleport ? barisSetelahEfek : barisBaru), (teleport ? kolomSetelahEfek : kolomBaru), hpBerikut, idIterasi, karakterSekarang);
                 }
             }
         }
 
-        if (!moved_in_this_iteration_branch && !(r == finishY && c == finishX) ) {
-            if (stopAllSearch) return; // Cek lagi sebelum panggil iterasi baru karena stuck
-            // ... (logika stuck sama)
-            if (display_steps) { System.out.println("Iterasi " + iteration_id + " STUCK... Mulai iterasi baru.");}
-            findPath(0, current_path_board, r, c, current_hp, iteration_id + 1, map[r][c]);
+        // NOTE: Jika tidak bisa bergerak, mulai iterasi baru dari posisi sekarang
+        if (!sudahBergerak && !(baris == akhirBaris && kolom == akhirKolom) ) {
+            if (hentikanSemua) return;
+            if (tampilLangkah) { System.out.println("Iterasi " + idIterasi + " STUCK... Mulai iterasi baru.");}
+            findPath(0, copyPapan, baris, kolom, hpSekarang, idIterasi + 1, papanKarakter[baris][kolom]);
             return;
         }
     }
 
-    static void printMapWithOverlay(char[][] baseMap, int[][] pathOverlay, int hp_info, int steps_info_display, boolean isFinalSolution) {
-        // ... (sama, tapi mungkin ingin menyesuaikan pesan jika isFinalSolution dan itu adalah firstFoundSolutionPath)
-        System.out.println("\n=== MAP (HP: " + hp_info + ", Langkah ke/Jml Sel: " + steps_info_display + ") ===");
-        if (isFinalSolution && firstFoundIterationId != -1) { // Cek firstFoundIterationId
-            System.out.println("--- Solusi Pertama yang Mencapai Finish (pada Iterasi ID: " + firstFoundIterationId + ") ---");
+    // NOTE: Menampilkan papan beserta jalur solusi/percobaan
+    static void tampilkanPapan(char[][] papanDasar, int[][] overlayJalur, int infoHp, int infoLangkah, boolean solusiAkhir) {
+        System.out.println("\n=== MAP (HP: " + infoHp + ", Langkah ke/Jml Sel: " + infoLangkah + ") ===");
+        if (solusiAkhir && iterasiSolusiPertama != -1) {
+            System.out.println("--- Solusi Pertama yang Mencapai Finish (pada Iterasi ID: " + iterasiSolusiPertama + ") ---");
         }
-        // ... (sisa printMapWithOverlay sama) ...
-        for (int i = 0; i < SIZE; i++) {
-            for (int j = 0; j < SIZE; j++) System.out.print("+---");
+        for (int i = 0; i < UKURAN; i++) {
+            for (int j = 0; j < UKURAN; j++) System.out.print("+---");
             System.out.println("+");
-            for (int j = 0; j < SIZE; j++) {
-                char mapChar = baseMap[i][j];
-                int pathMark = (pathOverlay != null) ? pathOverlay[i][j] : 0;
-                if (mapChar == 'S' || mapChar == 'F' || mapChar == 'B' || mapChar == 'A' || mapChar == 'a' || mapChar == 'H' || mapChar == 'T') {
-                    System.out.print("| " + mapChar + " ");
-                } else if (pathMark != 0) {
-                    System.out.printf("|%3d", pathMark);
+            for (int j = 0; j < UKURAN; j++) {
+                char karakterPeta = papanDasar[i][j];
+                int tandaJalur = (overlayJalur != null) ? overlayJalur[i][j] : 0;
+                if (karakterPeta == 'S' || karakterPeta == 'F' || karakterPeta == 'B' || karakterPeta == 'A' || karakterPeta == 'a' || karakterPeta == 'H' || karakterPeta == 'T') {
+                    System.out.print("| " + karakterPeta + " ");
+                } else if (tandaJalur != 0) {
+                    System.out.printf("|%3d", tandaJalur);
                 } else {
                     System.out.print("|   ");
                 }
             }
             System.out.println("|");
         }
-        for (int j = 0; j < SIZE; j++) System.out.print("+---");
+        for (int j = 0; j < UKURAN; j++) System.out.print("+---");
         System.out.println("+");
     }
 }
